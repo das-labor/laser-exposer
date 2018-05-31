@@ -10,8 +10,7 @@ void timer_init(){
 	ACSR = (1<<ACIC); //Analog comparator for input capture
 	
 	TCCR1B = (1<<ICNC1) | 1; //noise canceler, clk/1
-	TIMSK |= (1<<ICIE1) | (1<<OCIE1A);
-	
+	TIMSK |= (1<<ICIE1) | (1<<OCIE1A); // input capture interrupt enable, output compare 1A interrupt enable
 }
 
 #define SET_PWM(v) OCR0A=(v)
@@ -21,20 +20,15 @@ uint8_t overflow;
 volatile uint8_t freq_correct;
 volatile uint8_t enabled;
 
-ISR(TIMER1_COMPA_vect){
-	
-	PORTD ^= 1<<PD1;
-	
-	if(enabled){
-		SET_PWM(255);
-	}
-	overflow = 1;
-	OCR1A += 32768;
-}
-
 int16_t   integral;
 
-
+/*
+ * The input capture interrupt is called on every
+ * pulse of the motor frequency generator.
+ *
+ * The motor frequency generator generates a frequency
+ * that is proportional to the motor's rotational speed.
+ */
 ISR(TIMER1_CAPT_vect){
 	static uint16_t  old_icr;
 	uint16_t         icr;
@@ -42,18 +36,31 @@ ISR(TIMER1_CAPT_vect){
 	int16_t          a;
 	
 	icr     = ICR1;
-	y       = icr - old_icr;
-	if(y < 1000) return;
+	y       = icr - old_icr; // calculate how many timer clocks we have since last fg pulse
+	if(y < 1000) return; // value much to small: must be a nuisance pulse so we ignore it
 	old_icr = icr;
 
-	PORTD ^= 1<<PD0;
+	PORTD ^= 1<<PD0; // debug pin PD0 so we can look at the signal on a scope
 
+	// frequency is not correct unless we say otherwise.
+	// the main loop will never see the signal going to 0
+	// temporarily as it can't execute during the interrupt handler
 	freq_correct = 0;
-	OCR1A = icr + 32768; //for overflow
-		
+
+	// set up the compare match for detecting overflows
+	// (rotation to slow). Normally the compare value
+	// is not going to be reached.
+	OCR1A = icr + 32768;
+
+	// if we had an overflow, this measurement needs to be
+	// ignored, but the next one can be used unless we
+	// get another overflow
 	if(overflow == 1){
 		overflow = 0;
-	}else{		
+	}else{
+	  // okay, we have a valid rotation rate measurement
+
+	  // clamp it so the following PI controller
 		if(y < 0) y = 10000;
 		if(y > 10000) y = 10000;
 		
@@ -80,6 +87,18 @@ ISR(TIMER1_CAPT_vect){
 		}
 	}
 }
+
+ISR(TIMER1_COMPA_vect){
+
+  PORTD ^= 1<<PD1;
+
+  if(enabled){
+    SET_PWM(255);
+  }
+  overflow = 1;
+  OCR1A += 32768;
+}
+
 
 
 #define ENABLE_PORT D
