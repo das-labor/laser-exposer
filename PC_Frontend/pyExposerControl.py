@@ -1,13 +1,17 @@
+#!/usr/bin/env python
 from Tkinter import *
 from tkFileDialog import *
 from subprocess import call
 from PIL import Image
 from PIL import ImageTk
-import ImageOps
+from PIL import ImageOps
 import serial
+import os
 
 WORK_X_SIZE = 2400
 WORK_Y_SIZE = 3780
+
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 class PcbData:
 	def init_widgets(self, parent):				
@@ -130,12 +134,12 @@ class PcbData:
 		return data
 
 	def open_file(self):
-		myPdf = askopenfilename(filetypes=[("pdf files", "*.pdf")], initialdir="d:/work/eagle")
+		myPdf = askopenfilename(filetypes=[("pdf files", "*.pdf")], initialdir="/home/labor/")
 		#print myPdf
-		args = "-mono -f 1 -l 1 -r 600 \"" + myPdf + "\" C:/Windows/Temp/"
+		args = "-mono -f 1 -l 1 -r 600 \"" + myPdf + "\" /tmp/"
 		#print args
 		call("pdftoppm " + args, shell=True)
-		image = Image.open("c:/Windows/Temp/-000001.pbm")
+		image = Image.open("/tmp/-1.pbm")
 		#image.show()
 		im = image.convert("L")
 		im1 = ImageOps.invert(im)
@@ -226,7 +230,7 @@ class MachineData:
 
 class SerialCom():
 	def __init__(self):
-		self.ser = serial.Serial('COM7', 128000, timeout=1)
+		self.ser = serial.Serial('/dev/ttyUSB0', 128000, timeout=1)
 	def getStatus(self):
 		self.ser.write('S')
 		return ord(self.ser.read())

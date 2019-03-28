@@ -1,0 +1,1 @@
+print ___FILE___

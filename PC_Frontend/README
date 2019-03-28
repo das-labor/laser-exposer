@@ -1,0 +1,2 @@
+Installation on debian based distributions:
+* sudo apt install python-serial python-pil python-pil.imagetk python-tk
